@@ -6,10 +6,9 @@ import time
 
 st.title("台股看盤")
 
-# 輸入股票代碼
 codes_input = st.text_input("股票代碼，用逗號分隔", "2330,2317,0050")
 
-# 自動加 .TW
+# 自動補 .TW
 codes = []
 for c in codes_input.split(","):
     c = c.strip()
@@ -19,18 +18,18 @@ for c in codes_input.split(","):
         codes.append(c)
 
 if codes:
-    st.write("正在抓資料...")
+    st.write("正在抓資料，請稍等...")
 
     try:
         session = requests.Session()
-        session.get("https://mis.twse.com.tw/stock/index.jsp", verify=False)
+        session.get("https://mis.twse.com.tw/stock/index.jsp", verify=False, timeout=10)
 
         for code in codes:
-            # 抓即時報價
             code_clean = code.replace('.TW', '')
             ex_ch = f"tse_{code_clean}.tw"
             url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={ex_ch}&json=1&delay=0"
-            r = session.get(url, verify=False)
+
+            r = session.get(url, verify=False, timeout=10)
             data = json.loads(r.text)
 
             if 'msgArray' in data and data['msgArray']:
@@ -40,23 +39,40 @@ if codes:
                 change = stock.get('diff', '-')
                 percent = stock.get('percent', '-')
 
-                # 漲跌顏色（綠漲紅跌）
-                color = "normal" if change != '-' and float(change) > 0 else "inverse" if change != '-' and float(change) < 0 else "off"
+                # 漲跌顏色
+                delta_color = "off"
+                try:
+                    change_num = float(change) if change != '-' else 0
+                    if change_num > 0:
+                        delta_color = "normal"  # 綠色漲
+                    elif change_num < 0:
+                        delta_color = "inverse"  # 紅色跌
+                except:
+                    pass
 
+                # 顯示卡片
                 st.metric(
                     label=f"{code_clean} {name}",
                     value=price,
                     delta=f"{change} ({percent}%)",
-                    delta_color=color
+                    delta_color=delta_color
                 )
 
-                # 折線圖（最近5天）
-                hist = yf.download(code, period="5d", progress=False)
-                if not hist.empty:
-                    st.line_chart(hist['Close'])
+                # 折線圖
+                try:
+                    hist = yf.download(code, period="5d", progress=False)
+                    if not hist.empty:
+                        st.line_chart(hist['Close'])
+                except:
+                    pass
+
+            else:
+                st.warning(f"{code} 無資料")
 
     except Exception as e:
         st.error("抓不到資料，請等一下再試")
+
+st.info("上市股直接輸入代碼，上櫃股試 otc_開頭。休市顯示最後收盤。")
 
 # 每30秒自動更新
 time.sleep(30)
