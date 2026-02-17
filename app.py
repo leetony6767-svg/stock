@@ -6,20 +6,31 @@ import time
 
 st.title("台股看盤")
 
+# 輸入股票代碼
 codes_input = st.text_input("股票代碼，用逗號分隔", "2330,2317,0050")
+
 # 自動加 .TW
-codes = [c.strip() + '.TW' if not c.strip().upper().endswith('.TW') else c.strip() for c in codes_input.split(",") if c.strip()]
+codes = []
+for c in codes_input.split(","):
+    c = c.strip()
+    if c:
+        if not c.upper().endswith('.TW'):
+            c = c + '.TW'
+        codes.append(c)
 
 if codes:
-    st.write("正在抓資料，請稍等...")
+    st.write("正在抓資料...")
+
     try:
         session = requests.Session()
-        session.get("https://mis.twse.com.tw/stock/index.jsp", verify=False, timeout=10)
+        session.get("https://mis.twse.com.tw/stock/index.jsp", verify=False)
 
         for code in codes:
-            ex_ch = f"tse_{code.replace('.TW', '')}.tw"  # 移除 .TW 後加 tse_
+            # 抓即時報價
+            code_clean = code.replace('.TW', '')
+            ex_ch = f"tse_{code_clean}.tw"
             url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={ex_ch}&json=1&delay=0"
-            r = session.get(url, verify=False, timeout=10)
+            r = session.get(url, verify=False)
             data = json.loads(r.text)
 
             if 'msgArray' in data and data['msgArray']:
@@ -29,34 +40,24 @@ if codes:
                 change = stock.get('diff', '-')
                 percent = stock.get('percent', '-')
 
-                # 判斷漲跌顏色
-                delta_color = "off"
-                if change != '-' and float(change) > 0:
-                    delta_color = "normal"  # 綠色漲
-                elif change != '-' and float(change) < 0:
-                    delta_color = "inverse"  # 紅色跌
+                # 漲跌顏色（綠漲紅跌）
+                color = "normal" if change != '-' and float(change) > 0 else "inverse" if change != '-' and float(change) < 0 else "off"
 
                 st.metric(
-                    label=f"{code.replace('.TW', '')} {name}",
+                    label=f"{code_clean} {name}",
                     value=price,
-                    delta=f"{change} ({percent})",
-                    delta_color=delta_color
+                    delta=f"{change} ({percent}%)",
+                    delta_color=color
                 )
 
-                # 加簡單折線圖（最近 5 天收盤價）
+                # 折線圖（最近5天）
                 hist = yf.download(code, period="5d", progress=False)
                 if not hist.empty:
-                    st.line_chart(hist['Close'], use_container_width=True)
-                    st.caption(f"{code.replace('.TW', '')} 最近 5 天收盤價走勢")
-            else:
-                st.warning(f"{code} 無資料（可能代碼錯或休市）")
+                    st.line_chart(hist['Close'])
 
     except Exception as e:
-        st.error(f"抓失敗：{str(e)}")
-        st.info("建議：試單一支 2330，或等 1 分鐘再試。")
+        st.error("抓不到資料，請等一下再試")
 
-st.info("上市股：2330、2317、0050\n上櫃股：試 otc_6550 等\n休市顯示最後收盤或 '-'")
-
-# 加即時自動更新（每 30 秒刷新一次）
+# 每30秒自動更新
 time.sleep(30)
 st.rerun()
