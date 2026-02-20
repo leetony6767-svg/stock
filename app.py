@@ -1,156 +1,150 @@
 import streamlit as st
-from datetime import datetime, timedelta
 
-# 設定 APP 名稱為「量化飆股」
+# 頁面設定
 st.set_page_config(
-    page_title="量化飆股 - 台股量化選股",
+    page_title="量化飆股 - 選股 App",
     page_icon="📈",
-    layout="wide"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
-# 金色背景 + 橘色按鈕 + 白色字 CSS（高級風格）
+# 完整 CSS（你提供的樣式，已微調相容性）
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
-
-    * {
-        font-family: 'Noto Sans TC', sans-serif !important;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
 
     .stApp {
-        background: linear-gradient(135deg, #1a1200 0%, #3a2a00 100%);
-        color: #ffffff !important;
+        background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%) !important;
     }
 
     .card {
-        background: rgba(255, 215, 0, 0.08);
-        border-radius: 20px;
-        padding: 32px;
-        box-shadow: 0 10px 30px rgba(255, 215, 0, 0.15);
-        border: 1px solid rgba(255, 215, 0, 0.3);
-        backdrop-filter: blur(10px);
-        margin: 24px 0;
-    }
-
-    h1 {
-        color: #ffd700 !important;
-        font-weight: 700;
-        text-align: center;
-        letter-spacing: 1px;
-        text-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
-    }
-
-    h2, h3 {
-        color: #ffeb3b !important;
+        background: rgba(0,0,0,0.25) !important;
+        border-radius: 28px !important;
+        padding: 40px !important;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.5) !important;
+        border: 2px solid rgba(255,255,255,0.3) !important;
+        margin: 20px auto !important;
+        max-width: 480px !important;
     }
 
     .stButton > button {
-        background: linear-gradient(90deg, #ff6b00, #ff8c00) !important;
-        color: #ffffff !important;
+        background: linear-gradient(90deg, #ff6b00, #ff8c00, #ffa500) !important;
+        color: white !important;
+        border-radius: 16px !important;
+        padding: 18px !important;
+        font-size: 22px !important;
+        font-weight: 900 !important;
+        box-shadow: 0 8px 25px rgba(255,107,0,0.5) !important;
         border: none !important;
-        border-radius: 12px !important;
-        padding: 14px 28px !important;
-        font-weight: 600 !important;
-        font-size: 16px !important;
-        transition: all 0.3s !important;
         width: 100% !important;
-        margin: 12px 0 !important;
-        box-shadow: 0 4px 15px rgba(255, 107, 0, 0.4) !important;
     }
 
     .stButton > button:hover {
-        background: linear-gradient(90deg, #ff8c00, #ffa500) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(255, 107, 0, 0.6) !important;
+        transform: scale(1.05) !important;
+        box-shadow: 0 12px 35px rgba(255,107,0,0.7) !important;
     }
 
     .stTextInput > div > div > input {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #ffffff !important;
-        border: 1px solid #ffd700 !important;
-        border-radius: 12px !important;
-        padding: 14px !important;
-        font-size: 16px !important;
+        background: rgba(255,255,255,0.18) !important;
+        color: white !important;
+        border: 2px solid #ffd700 !important;
+        border-radius: 16px !important;
+        padding: 18px !important;
+        font-size: 20px !important;
+        text-align: center !important;
     }
 
-    .success {
-        background: rgba(0, 200, 100, 0.2) !important;
-        color: #ffffff !important;
-        padding: 16px;
-        border-radius: 12px;
-        margin: 16px 0;
+    .stTextInput label {
+        color: white !important;
+        font-size: 20px !important;
+        text-align: center !important;
+        display: block !important;
+        margin-bottom: 12px !important;
     }
 
-    .error {
-        background: rgba(220, 50, 50, 0.2) !important;
-        color: #ffffff !important;
-        padding: 16px;
-        border-radius: 12px;
-        margin: 16px 0;
+    h1, h2, h3 {
+        color: white !important;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.6) !important;
     }
+
+    p, div, span {
+        color: white !important;
+    }
+
+    /* 隱藏 Streamlit 預設元素 */
+    header, footer, #MainMenu {visibility: hidden !important;}
+    .stDeployButton {display: none !important;}
     </style>
 """, unsafe_allow_html=True)
 
-# 會員資料暫存
-if 'members' not in st.session_state:
-    st.session_state.members = {}
-
-# 側邊欄後台
-admin_mode = st.sidebar.checkbox("管理員模式")
-if admin_mode:
-    pw = st.sidebar.text_input("管理密碼", type="password")
-    if pw == "@kk121688":
-        st.sidebar.success("後台已解鎖")
-        username = st.sidebar.text_input("開通帳號")
-        days = st.sidebar.number_input("天數", min_value=30, value=365)
-        if st.sidebar.button("確認開通"):
-            if username:
-                expiry = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-                st.session_state.members[username] = expiry
-                st.sidebar.success(f"已開通！{username} 到期：{expiry}")
-            else:
-                st.sidebar.error("請輸入帳號")
-    else:
-        st.sidebar.error("密碼錯誤")
-
-# 客戶端登入
+# 登入狀態管理
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
+# 模擬帳號密碼（可改成資料庫驗證）
+VALID_ACCOUNT = "test"
+VALID_PASSWORD = "123456"
+
+# 登入頁
 if not st.session_state.logged_in:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("<h1>量化飆股 - 請登入</h1>", unsafe_allow_html=True)
-    username = st.text_input("帳號（Line ID 或手機號碼）").strip()
-    if st.button("登入"):
-        if username in st.session_state.members:
-            expiry_str = st.session_state.members[username]
-            expiry = datetime.strptime(expiry_str, "%Y-%m-%d")
-            if expiry > datetime.now():
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.expiry = expiry
-                st.rerun()
-            else:
-                st.markdown('<div class="error">會員已到期，請續費</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="error">帳號尚未開通，請轉帳後聯絡管理員</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
+    st.title("量化飆股")
+    st.subheader("請登入")
 
-# 已登入主畫面
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown(f'<div class="success">登入成功！歡迎 {st.session_state.username}，有效至 {st.session_state.expiry.strftime("%Y-%m-%d")}</div>', unsafe_allow_html=True)
-
-st.subheader("量化飆股")
-if st.button("開始篩選股票"):
-    with st.spinner("篩選中..."):
-        st.success("篩選完成！")
+    with st.container():
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.write("符合條件股票：2330, 2317, 2454, 0050 (範例)")
+        
+        account = st.text_input("帳號 (Line ID 或手機號碼)", "")
+        password = st.text_input("密碼", type="password", "")
+
+        if st.button("登入"):
+            if account.strip() == VALID_ACCOUNT and password == VALID_PASSWORD:
+                st.session_state.logged_in = True
+                st.success("登入成功，正在跳轉...")
+                st.rerun()  # 強制重新執行頁面
+            else:
+                st.error("帳號或密碼錯誤，請再試一次")
+
         st.markdown('</div>', unsafe_allow_html=True)
 
-if st.button("登出"):
-    st.session_state.logged_in = False
-    st.rerun()
+        st.markdown("""
+            <div style="text-align:center; margin-top:20px;">
+                還沒有帳號？請聯絡管理員註冊
+            </div>
+        """, unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+else:
+    # 主頁 - 選股介面
+    st.title("量化飆股 - 今日精選")
+
+    search = st.text_input("搜尋股票代碼 / 名稱", "")
+
+    # 模擬股票資料
+    stocks = [
+        {"code": "2330", "name": "台積電", "price": 1056, "change": "+4.8%"},
+        {"code": "2454", "name": "聯發科", "price": 1482, "change": "+6.2%"},
+        {"code": "2382", "name": "廣達", "price": 378, "change": "-1.3%"},
+        {"code": "3231", "name": "緯創", "price": 142, "change": "+9.7%"},
+        {"code": "2317", "name": "鴻海", "price": 198, "change": "+3.5%"},
+    ]
+
+    filtered = [s for s in stocks if search.lower() in s["code"].lower() or search.lower() in s["name"].lower()] if search else stocks
+
+    if filtered:
+        cols = st.columns(2)
+        for i, stock in enumerate(filtered):
+            with cols[i % 2]:
+                change_color = "#00ff9d" if "+" in stock["change"] else "#ff4d4d"
+                st.markdown(f"""
+                <div class="card" style="padding:20px; text-align:center;">
+                    <div style="font-size:1.6rem; font-weight:900;">{stock['name']}</div>
+                    <div style="font-size:2.2rem; color:#00ff9d; margin:10px 0;">{stock['price']}</div>
+                    <div style="font-size:1.4rem; color:{change_color};">{stock['change']}</div>
+                    <div style="font-size:1.1rem; opacity:0.8;">{stock['code']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("無符合搜尋結果")
+
+    if st.button("登出"):
+        st.session_state.logged_in = False
+        st.rerun()
