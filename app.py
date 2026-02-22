@@ -1,173 +1,171 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
-import pytz
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# 頁面設定（括號完整關閉）
-st.set_page_config(
-    page_title="量化飆股 - 選股 App",
-    page_icon="📈",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
+# ──────────────────────────────────────────────
+# Google Sheets 連線（請先設定 Secrets）
+# ──────────────────────────────────────────────
+# 在 Streamlit Cloud → Settings → Secrets 貼上你的 GCP Service Account JSON
+# JSON 格式範例：
+# {
+#   "type": "service_account",
+#   "project_id": "...",
+#   "private_key_id": "...",
+#   "private_key": "-----BEGIN PRIVATE KEY-----...",
+#   "client_email": "...",
+#   "client_id": "...",
+#   "auth_uri": "...",
+#   "token_uri": "...",
+#   "auth_provider_x509_cert_url": "...",
+#   "client_x509_cert_url": "..."
+# }
 
-# CSS 樣式（全部文字白色、金屬感背景）
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+client = gspread.authorize(creds)
+
+# 你的 Google Sheet 名稱（請先建立好）
+SHEET_NAME = "QuantStockUsers"
+sheet = client.open(SHEET_NAME).sheet1
+
+# 讀取資料
+data = sheet.get_all_records()
+df = pd.DataFrame(data)
+
+# 確保欄位存在（若 Sheet 是空的，先建立欄位）
+required_columns = ['phone', 'expire_date', 'paid', 'notes']
+for col in required_columns:
+    if col not in df.columns:
+        df[col] = ""
+
+# 後台密碼（請改成你自己的）
+ADMIN_PASSWORD = "admin888"  # ← 改成你想用的密碼
+
+# 登入狀態
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.phone = None
+    st.session_state.is_admin = False
+
+# ──────────────────────────────────────────────
+# CSS 樣式
+# ──────────────────────────────────────────────
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
-
-    .stApp {
-        background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%) !important;
-    }
-
-    .card {
-        background: rgba(0,0,0,0.25) !important;
-        border-radius: 28px !important;
-        padding: 40px !important;
-        box-shadow: 0 15px 40px rgba(0,0,0,0.5) !important;
-        border: 2px solid rgba(255,255,255,0.3) !important;
-        margin: 20px auto !important;
-        max-width: 480px !important;
-    }
-
-    .stButton > button {
-        background: linear-gradient(90deg, #ff6b00, #ff8c00, #ffa500) !important;
-        color: white !important;
-        border-radius: 16px !important;
-        padding: 18px !important;
-        font-size: 22px !important;
-        font-weight: 900 !important;
-        box-shadow: 0 8px 25px rgba(255,107,0,0.5) !important;
-        border: none !important;
-        width: 100% !important;
-    }
-
-    .stButton > button:hover {
-        transform: scale(1.05) !important;
-        box-shadow: 0 12px 35px rgba(255,107,0,0.7) !important;
-    }
-
-    .stTextInput > div > div > input {
-        background: rgba(255,255,255,0.18) !important;
-        color: white !important;
-        border: 2px solid #ffd700 !important;
-        border-radius: 16px !important;
-        padding: 18px !important;
-        font-size: 20px !important;
-        text-align: center !important;
-    }
-
-    .stTextInput label {
-        color: white !important;
-        font-size: 20px !important;
-        text-align: center !important;
-        display: block !important;
-        margin-bottom: 12px !important;
-    }
-
-    h1, h2, h3, h4, h5, h6, p, div, span, label {
-        color: white !important;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.6) !important;
-    }
-
-    header, footer, #MainMenu {visibility: hidden !important;}
-    .stDeployButton {display: none !important;}
+    .stApp { background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%) !important; }
+    .card { background: rgba(0,0,0,0.25) !important; border-radius: 20px !important; padding: 30px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important; border: 2px solid rgba(255,255,255,0.3) !important; max-width: 500px !important; margin: auto !important; }
+    .stButton > button { background: linear-gradient(90deg, #ff6b00, #ffa500) !important; color: white !important; border-radius: 12px !important; padding: 16px !important; font-size: 20px !important; font-weight: bold !important; width: 100% !important; }
+    .stTextInput > div > div > input { background: rgba(255,255,255,0.2) !important; color: white !important; border: 2px solid #ffd700 !important; border-radius: 12px !important; padding: 16px !important; font-size: 18px !important; text-align: center !important; }
+    h1, h2, h3, p, div { color: white !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# 登入狀態管理
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
+# ──────────────────────────────────────────────
+# 管理員後台（左側邊欄）
+# ──────────────────────────────────────────────
+with st.sidebar:
+    st.title("管理員後台")
+    admin_input = st.text_input("輸入後台密碼", type="password")
+    
+    if admin_input == ADMIN_PASSWORD:
+        st.session_state.is_admin = True
+        st.success("後台已開啟")
+        
+        st.subheader("客戶管理")
+        st.dataframe(df)
+        
+        st.subheader("新增/編輯客戶")
+        new_phone = st.text_input("手機號碼")
+        expire_date = st.date_input("到期日期（格式：YYYY-MM-DD）")
+        paid_status = st.selectbox("付費狀態", ["已付費", "未付費"])
+        notes = st.text_area("備註")
 
-# 模擬帳號密碼
-VALID_ACCOUNT = "test"
-VALID_PASSWORD = "123456"
+        if st.button("儲存客戶"):
+            if new_phone:
+                row = df[df['phone'] == new_phone]
+                if not row.empty:
+                    index = row.index[0] + 2
+                    sheet.update_cell(index, 3, expire_date.strftime("%Y-%m-%d"))
+                    sheet.update_cell(index, 4, paid_status)
+                    sheet.update_cell(index, 5, notes)
+                    st.success("更新成功")
+                else:
+                    new_row = [new_phone, "", expire_date.strftime("%Y-%m-%d"), paid_status, notes]
+                    sheet.append_row(new_row)
+                    st.success("新增成功")
+                st.rerun()
 
-# 登入頁面
+        st.subheader("銀行轉帳資訊（客戶會看到）")
+        bank_info = st.text_area("填寫銀行帳戶/轉帳方式")
+        if st.button("儲存銀行資訊"):
+            sheet.update_cell(1, 6, bank_info)  # F1 欄放銀行資訊
+            st.success("銀行資訊已更新")
+    else:
+        if admin_input:
+            st.error("密碼錯誤")
+
+# ──────────────────────────────────────────────
+# 前台客戶頁面
+# ──────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.title("量化飆股")
-    st.subheader("請登入")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader("客戶登入")
 
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        
-        account = st.text_input("帳號 (Line ID 或手機號碼)", "")
-        password = st.text_input("密碼", type="password", "")
+    phone = st.text_input("請輸入您的手機號碼", "")
 
-        if st.button("登入"):
-            if account.strip() == VALID_ACCOUNT and password == VALID_PASSWORD:
-                st.session_state.logged_in = True
-                st.success("登入成功，正在跳轉...")
-                st.rerun()
+    if st.button("登入"):
+        if phone.strip():
+            user = df[df['phone'] == phone.strip()]
+            if not user.empty:
+                expire_str = user.iloc[0]['expire_date']
+                try:
+                    expire_date = datetime.strptime(expire_str, "%Y-%m-%d").date()
+                    today = datetime.now().date()
+                    if expire_date >= today:
+                        st.session_state.logged_in = True
+                        st.session_state.phone = phone.strip()
+                        st.success(f"登入成功！會員有效至 {expire_str}")
+                        st.rerun()
+                    else:
+                        st.error(f"會員已到期，到期日：{expire_str}。請續費後聯絡管理員。")
+                except:
+                    st.error("會員資料格式錯誤，請聯絡管理員。")
             else:
-                st.error("帳號或密碼錯誤，請再試一次")
+                st.error("手機號碼未註冊，請先轉帳付費後由管理員開通。")
+        else:
+            st.error("請輸入手機號碼")
 
-        st.markdown('</div>', unsafe_allow_html=True)
+    # 顯示銀行資訊（從 Sheet F1 讀取）
+    bank_info = sheet.cell(1, 6).value or "尚未設定，請聯絡管理員"
+    st.markdown(f"""
+        <p style='text-align:center; margin-top:20px;'>
+            尚未註冊？請轉帳付費後聯絡管理員開通<br>
+            銀行轉帳資訊：{bank_info}
+        </p>
+    """, unsafe_allow_html=True)
 
-        st.markdown("""
-            <div style="text-align:center; margin-top:20px; font-size:16px;">
-                還沒有帳號？請聯絡管理員註冊
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 else:
-    # 主頁 - 選股介面
-    st.title("量化飆股 - 今日精選")
+    # 已登入客戶頁面
+    st.title("量化飆股")
+    user = df[df['phone'] == st.session_state.phone].iloc[0]
+    expire_date = user['expire_date']
+    st.subheader(f"歡迎，{st.session_state.phone}")
+    st.write(f"會員有效期至：{expire_date}")
 
-    # 搜尋欄
-    search_term = st.text_input("搜尋股票代碼 / 名稱", placeholder="例如：2330 台積電")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.write("### 專屬功能（開發中）")
+    st.write("- 收盤後自動選股")
+    st.write("- 條件篩選（漲幅、成交量、技術指標）")
+    st.write("- 即時報價與 K 線圖")
+    st.write("目前正在開發，敬請期待！")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # 收盤後選股按鈕
-    if st.button("收盤後選股 (選3支)"):
-        tz = pytz.timezone("Asia/Taipei")
-        now = datetime.now(tz)
-        close_time = now.replace(hour=13, minute=30, second=0, microsecond=0)
-        
-        if now > close_time:
-            tickers = ["2330.TW", "2454.TW", "2382.TW", "3231.TW", "2317.TW", "3711.TW", "3661.TW"]
-            start_date = (now - timedelta(days=6)).strftime("%Y-%m-%d")
-            data = yf.download(tickers, start=start_date)["Adj Close"]
-            volume = yf.download(tickers, start=start_date)["Volume"]
-
-            selected = []
-            for ticker in tickers:
-                try:
-                    today_close = data[ticker].iloc[-1]
-                    yesterday_close = data[ticker].iloc[-2]
-                    change_pct = ((today_close - yesterday_close) / yesterday_close) * 100
-
-                    avg_volume = volume[ticker].iloc[-6:-1].mean()
-                    today_volume = volume[ticker].iloc[-1]
-
-                    # 條件範例：漲幅 >5%、成交量 >平均1.5倍、價格 >100
-                    if change_pct > 5 and today_volume > avg_volume * 1.5 and today_close > 100:
-                        selected.append((ticker, change_pct, today_close))
-                except:
-                    pass
-
-            selected = sorted(selected, key=lambda x: x[1], reverse=True)[:3]
-
-            if selected:
-                st.success("根據條件選出3支股票：")
-                cols = st.columns(3)
-                for i, (ticker, change_pct, price) in enumerate(selected):
-                    with cols[i]:
-                        name = yf.Ticker(ticker).info.get("shortName", ticker)
-                        st.markdown(f"""
-                        <div class="card" style="padding:20px; text-align:center;">
-                            <div style="font-size:1.4rem; font-weight:900;">{name}</div>
-                            <div style="font-size:1.8rem; color:#00ff9d;">{round(price, 2)}</div>
-                            <div style="font-size:1.2rem; color:#00ff9d;">+{round(change_pct, 2)}%</div>
-                            <div>{ticker}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-            else:
-                st.warning("今日沒有符合條件的股票")
-        else:
-            st.warning("現在不是收盤後，請在13:30後再試")
-
-    # 登出按鈕
     if st.button("登出"):
         st.session_state.logged_in = False
+        st.session_state.phone = None
         st.rerun()
