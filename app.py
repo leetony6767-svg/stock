@@ -5,43 +5,23 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ──────────────────────────────────────────────
-# Google Sheets 連線（請先設定 Secrets）
+# Google Sheets 連線（請先在 Streamlit Secrets 設定 gcp_service_account JSON）
 # ──────────────────────────────────────────────
-# 在 Streamlit Cloud → Settings → Secrets 貼上你的 GCP Service Account JSON
-# JSON 格式範例：
-# {
-#   "type": "service_account",
-#   "project_id": "...",
-#   "private_key_id": "...",
-#   "private_key": "-----BEGIN PRIVATE KEY-----...",
-#   "client_email": "...",
-#   "client_id": "...",
-#   "auth_uri": "...",
-#   "token_uri": "...",
-#   "auth_provider_x509_cert_url": "...",
-#   "client_x509_cert_url": "..."
-# }
-
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
 client = gspread.authorize(creds)
-
-# 你的 Google Sheet 名稱（請先建立好）
-SHEET_NAME = "QuantStockUsers"
-sheet = client.open(SHEET_NAME).sheet1
-
-# 讀取資料
+sheet = client.open("QuantStockUsers").sheet1  # 請先建立這個 Sheet
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
-# 確保欄位存在（若 Sheet 是空的，先建立欄位）
+# 確保欄位存在
 required_columns = ['phone', 'expire_date', 'paid', 'notes']
 for col in required_columns:
     if col not in df.columns:
         df[col] = ""
 
 # 後台密碼（請改成你自己的）
-ADMIN_PASSWORD = "admin888"  # ← 改成你想用的密碼
+ADMIN_PASSWORD = "admin888"  # ← 改這裡！
 
 # 登入狀態
 if 'logged_in' not in st.session_state:
@@ -50,7 +30,7 @@ if 'logged_in' not in st.session_state:
     st.session_state.is_admin = False
 
 # ──────────────────────────────────────────────
-# CSS 樣式
+# CSS 樣式（金屬感背景、全部文字白色）
 # ──────────────────────────────────────────────
 st.markdown("""
     <style>
@@ -63,22 +43,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
-# 管理員後台（左側邊欄）
+# 後台管理（左側邊欄）
 # ──────────────────────────────────────────────
 with st.sidebar:
     st.title("管理員後台")
-    admin_input = st.text_input("輸入後台密碼", type="password")
+    admin_pass = st.text_input("輸入後台密碼", type="password")
     
-    if admin_input == ADMIN_PASSWORD:
+    if admin_pass == ADMIN_PASSWORD:
         st.session_state.is_admin = True
         st.success("後台已開啟")
         
-        st.subheader("客戶管理")
+        st.subheader("客戶列表")
         st.dataframe(df)
         
         st.subheader("新增/編輯客戶")
         new_phone = st.text_input("手機號碼")
-        expire_date = st.date_input("到期日期（格式：YYYY-MM-DD）")
+        expire_date = st.date_input("到期日期")
         paid_status = st.selectbox("付費狀態", ["已付費", "未付費"])
         notes = st.text_area("備註")
 
@@ -86,7 +66,7 @@ with st.sidebar:
             if new_phone:
                 row = df[df['phone'] == new_phone]
                 if not row.empty:
-                    index = row.index[0] + 2
+                    index = row.index[0] + 2  # Sheet 從第2行開始
                     sheet.update_cell(index, 3, expire_date.strftime("%Y-%m-%d"))
                     sheet.update_cell(index, 4, paid_status)
                     sheet.update_cell(index, 5, notes)
@@ -98,16 +78,16 @@ with st.sidebar:
                 st.rerun()
 
         st.subheader("銀行轉帳資訊（客戶會看到）")
-        bank_info = st.text_area("填寫銀行帳戶/轉帳方式")
+        bank_info = st.text_area("填寫銀行帳戶 / 轉帳方式")
         if st.button("儲存銀行資訊"):
-            sheet.update_cell(1, 6, bank_info)  # F1 欄放銀行資訊
+            sheet.update_cell(1, 6, bank_info)  # F1 欄位放銀行資訊
             st.success("銀行資訊已更新")
     else:
-        if admin_input:
+        if admin_pass:
             st.error("密碼錯誤")
 
 # ──────────────────────────────────────────────
-# 前台客戶頁面
+# 前台客戶登入頁
 # ──────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.title("量化飆股")
@@ -150,19 +130,22 @@ if not st.session_state.logged_in:
     st.markdown("</div>", unsafe_allow_html=True)
 
 else:
+    # ──────────────────────────────────────────────
     # 已登入客戶頁面
+    # ──────────────────────────────────────────────
     st.title("量化飆股")
+    st.subheader(f"歡迎，{st.session_state.phone}")
+
     user = df[df['phone'] == st.session_state.phone].iloc[0]
     expire_date = user['expire_date']
-    st.subheader(f"歡迎，{st.session_state.phone}")
     st.write(f"會員有效期至：{expire_date}")
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.write("### 專屬功能（開發中）")
     st.write("- 收盤後自動選股")
-    st.write("- 條件篩選（漲幅、成交量、技術指標）")
-    st.write("- 即時報價與 K 線圖")
-    st.write("目前正在開發，敬請期待！")
+    st.write("- 條件篩選（漲幅、成交量等）")
+    st.write("- 即時報價與分析")
+    st.write("正在開發中，敬請期待！")
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.button("登出"):
