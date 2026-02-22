@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import pytz
 
-# 頁面設定（括號已完整關閉）
+# 頁面設定（括號完整關閉）
 st.set_page_config(
     page_title="量化飆股 - 選股 App",
     page_icon="📈",
@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS 樣式（全部文字白色，金屬感背景）
+# CSS 樣式（全部文字白色、金屬感背景）
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -76,7 +76,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 登入狀態
+# 登入狀態管理
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -84,7 +84,7 @@ if 'logged_in' not in st.session_state:
 VALID_ACCOUNT = "test"
 VALID_PASSWORD = "123456"
 
-# 登入頁
+# 登入頁面
 if not st.session_state.logged_in:
     st.title("量化飆股")
     st.subheader("請登入")
@@ -101,19 +101,24 @@ if not st.session_state.logged_in:
                 st.success("登入成功，正在跳轉...")
                 st.rerun()
             else:
-                st.error("帳號或密碼錯誤")
+                st.error("帳號或密碼錯誤，請再試一次")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("""
-            <div style="text-align:center; margin-top:20px;">
-                已經有帳號了？點我登入
+            <div style="text-align:center; margin-top:20px; font-size:16px;">
+                還沒有帳號？請聯絡管理員註冊
             </div>
         """, unsafe_allow_html=True)
 
 else:
-    st.title("量化飆股 - 選股 App")
+    # 主頁 - 選股介面
+    st.title("量化飆股 - 今日精選")
 
+    # 搜尋欄
+    search_term = st.text_input("搜尋股票代碼 / 名稱", placeholder="例如：2330 台積電")
+
+    # 收盤後選股按鈕
     if st.button("收盤後選股 (選3支)"):
         tz = pytz.timezone("Asia/Taipei")
         now = datetime.now(tz)
@@ -135,6 +140,7 @@ else:
                     avg_volume = volume[ticker].iloc[-6:-1].mean()
                     today_volume = volume[ticker].iloc[-1]
 
+                    # 條件範例：漲幅 >5%、成交量 >平均1.5倍、價格 >100
                     if change_pct > 5 and today_volume > avg_volume * 1.5 and today_close > 100:
                         selected.append((ticker, change_pct, today_close))
                 except:
@@ -161,6 +167,7 @@ else:
         else:
             st.warning("現在不是收盤後，請在13:30後再試")
 
+    # 登出按鈕
     if st.button("登出"):
         st.session_state.logged_in = False
         st.rerun()
