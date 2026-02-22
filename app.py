@@ -1,33 +1,20 @@
 import streamlit as st
-import pandas as pd
 from datetime import datetime, timedelta
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 
 # ──────────────────────────────────────────────
-# Google Sheets 連線（請先在 Streamlit Secrets 設定 gcp_service_account JSON）
+# 模擬客戶資料庫（用 session_state 儲存，測試用）
+# 真實上線請改用 Google Sheets 或資料庫
 # ──────────────────────────────────────────────
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-client = gspread.authorize(creds)
-sheet = client.open("QuantStockUsers").sheet1  # 請先建立這個 Sheet
-data = sheet.get_all_records()
-df = pd.DataFrame(data)
+if 'users' not in st.session_state:
+    st.session_state.users = {}  # {手機號碼: {'expire_date': datetime.date, 'paid': bool, 'notes': str}}
 
-# 確保欄位存在
-required_columns = ['phone', 'expire_date', 'paid', 'notes']
-for col in required_columns:
-    if col not in df.columns:
-        df[col] = ""
-
-# 後台密碼（請改成你自己的）
-ADMIN_PASSWORD = "admin888"  # ← 改這裡！
-
-# 登入狀態
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.phone = None
     st.session_state.is_admin = False
+
+# 後台密碼（請改成你自己的）
+ADMIN_PASSWORD = "admin888"  # ← 這裡改成你想用的密碼
 
 # ──────────────────────────────────────────────
 # CSS 樣式（金屬感背景、全部文字白色）
@@ -43,7 +30,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
-# 後台管理（左側邊欄）
+# 後台（左側邊欄）
 # ──────────────────────────────────────────────
 with st.sidebar:
     st.title("管理員後台")
@@ -54,8 +41,19 @@ with st.sidebar:
         st.success("後台已開啟")
         
         st.subheader("客戶列表")
-        st.dataframe(df)
-        
+        if st.session_state.users:
+            user_list = []
+            for phone, info in st.session_state.users.items():
+                user_list.append({
+                    "手機號碼": phone,
+                    "到期日": info['expire_date'].strftime("%Y-%m-%d") if info['expire_date'] else "無",
+                    "付費狀態": "已付費" if info['paid'] else "未付費",
+                    "備註": info['notes']
+                })
+            st.dataframe(pd.DataFrame(user_list))
+        else:
+            st.info("目前沒有客戶資料")
+
         st.subheader("新增/編輯客戶")
         new_phone = st.text_input("手機號碼")
         expire_date = st.date_input("到期日期")
@@ -64,24 +62,21 @@ with st.sidebar:
 
         if st.button("儲存客戶"):
             if new_phone:
-                row = df[df['phone'] == new_phone]
-                if not row.empty:
-                    index = row.index[0] + 2  # Sheet 從第2行開始
-                    sheet.update_cell(index, 3, expire_date.strftime("%Y-%m-%d"))
-                    sheet.update_cell(index, 4, paid_status)
-                    sheet.update_cell(index, 5, notes)
-                    st.success("更新成功")
-                else:
-                    new_row = [new_phone, "", expire_date.strftime("%Y-%m-%d"), paid_status, notes]
-                    sheet.append_row(new_row)
-                    st.success("新增成功")
+                st.session_state.users[new_phone] = {
+                    'expire_date': expire_date,
+                    'paid': paid_status == "已付費",
+                    'notes': notes
+                }
+                st.success(f"已儲存 {new_phone}")
                 st.rerun()
+            else:
+                st.error("請輸入手機號碼")
 
         st.subheader("銀行轉帳資訊（客戶會看到）")
         bank_info = st.text_area("填寫銀行帳戶 / 轉帳方式")
         if st.button("儲存銀行資訊"):
-            sheet.update_cell(1, 6, bank_info)  # F1 欄位放銀行資訊
-            st.success("銀行資訊已更新")
+            st.session_state.bank_info = bank_info
+            st.success("銀行資訊已儲存")
     else:
         if admin_pass:
             st.error("密碼錯誤")
@@ -98,28 +93,24 @@ if not st.session_state.logged_in:
 
     if st.button("登入"):
         if phone.strip():
-            user = df[df['phone'] == phone.strip()]
-            if not user.empty:
-                expire_str = user.iloc[0]['expire_date']
-                try:
-                    expire_date = datetime.strptime(expire_str, "%Y-%m-%d").date()
-                    today = datetime.now().date()
-                    if expire_date >= today:
-                        st.session_state.logged_in = True
-                        st.session_state.phone = phone.strip()
-                        st.success(f"登入成功！會員有效至 {expire_str}")
-                        st.rerun()
-                    else:
-                        st.error(f"會員已到期，到期日：{expire_str}。請續費後聯絡管理員。")
-                except:
-                    st.error("會員資料格式錯誤，請聯絡管理員。")
+            if phone.strip() in st.session_state.users:
+                info = st.session_state.users[phone.strip()]
+                expire_date = info['expire_date']
+                today = datetime.now().date()
+                if expire_date >= today:
+                    st.session_state.logged_in = True
+                    st.session_state.phone = phone.strip()
+                    st.success(f"登入成功！會員有效至 {expire_date.strftime('%Y-%m-%d')}")
+                    st.rerun()
+                else:
+                    st.error(f"會員已到期，到期日：{expire_date.strftime('%Y-%m-%d')}。請續費後聯絡管理員。")
             else:
                 st.error("手機號碼未註冊，請先轉帳付費後由管理員開通。")
         else:
             st.error("請輸入手機號碼")
 
-    # 顯示銀行資訊（從 Sheet F1 讀取）
-    bank_info = sheet.cell(1, 6).value or "尚未設定，請聯絡管理員"
+    # 顯示銀行資訊
+    bank_info = st.session_state.get('bank_info', "尚未設定，請聯絡管理員")
     st.markdown(f"""
         <p style='text-align:center; margin-top:20px;'>
             尚未註冊？請轉帳付費後聯絡管理員開通<br>
@@ -136,9 +127,9 @@ else:
     st.title("量化飆股")
     st.subheader(f"歡迎，{st.session_state.phone}")
 
-    user = df[df['phone'] == st.session_state.phone].iloc[0]
-    expire_date = user['expire_date']
-    st.write(f"會員有效期至：{expire_date}")
+    info = st.session_state.users[st.session_state.phone]
+    expire_date = info['expire_date']
+    st.write(f"會員有效期至：{expire_date.strftime('%Y-%m-%d')}")
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.write("### 專屬功能（開發中）")
