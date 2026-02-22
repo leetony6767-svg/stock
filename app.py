@@ -5,10 +5,21 @@ st.set_page_config(
     page_title="量化飆股 - 選股 App",
     page_icon="📈",
     layout="centered",
+    import streamlit as st
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+import pytz
+
+# 頁面設定
+st.set_page_config(
+    page_title="量化飆股 - 選股 App",
+    page_icon="📈",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# 完整 CSS（你提供的樣式，已微調相容性）
+# 套用 CSS 樣式（全部文字白色）
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -62,13 +73,9 @@ st.markdown("""
         margin-bottom: 12px !important;
     }
 
-    h1, h2, h3 {
+    h1, h2, h3, h4, h5, h6, p, div, span, label {
         color: white !important;
         text-shadow: 0 2px 10px rgba(0,0,0,0.6) !important;
-    }
-
-    p, div, span {
-        color: white !important;
     }
 
     /* 隱藏 Streamlit 預設元素 */
@@ -77,11 +84,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 登入狀態管理
+# 登入狀態
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# 模擬帳號密碼（可改成資料庫驗證）
+# 模擬帳號密碼
 VALID_ACCOUNT = "test"
 VALID_PASSWORD = "123456"
 
@@ -94,57 +101,83 @@ if not st.session_state.logged_in:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         
         account = st.text_input("帳號 (Line ID 或手機號碼)", "")
-        password = st.text_input("密碼", type="password", "")
+        password = st.text_input("密碼", type="password")
 
         if st.button("登入"):
             if account.strip() == VALID_ACCOUNT and password == VALID_PASSWORD:
                 st.session_state.logged_in = True
                 st.success("登入成功，正在跳轉...")
-                st.rerun()  # 強制重新執行頁面
+                st.rerun()
             else:
-                st.error("帳號或密碼錯誤，請再試一次")
+                st.error("帳號或密碼錯誤")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("""
             <div style="text-align:center; margin-top:20px;">
-                還沒有帳號？請聯絡管理員註冊
+                已經有帳號了？點我登入
             </div>
         """, unsafe_allow_html=True)
 
 else:
     # 主頁 - 選股介面
-    st.title("量化飆股 - 今日精選")
+    st.title("量化飆股 - 選股 App")
 
-    search = st.text_input("搜尋股票代碼 / 名稱", "")
+    # 收盤後選股按鈕
+    if st.button("收盤後選股 (選3支)"):
+        # 檢查是否收盤後 (台灣時間 13:30 後)
+        tz = pytz.timezone('Asia/Taipei')
+        now = datetime.now(tz)
+        close_time = now.replace(hour=13, minute=30, second=0, microsecond=0)
+        if now > close_time:
+            # 熱門股清單（可擴充）
+            tickers = ["2330.TW", "2454.TW", "2382.TW", "3231.TW", "2317.TW", "3711.TW", "3661.TW"]
 
-    # 模擬股票資料
-    stocks = [
-        {"code": "2330", "name": "台積電", "price": 1056, "change": "+4.8%"},
-        {"code": "2454", "name": "聯發科", "price": 1482, "change": "+6.2%"},
-        {"code": "2382", "name": "廣達", "price": 378, "change": "-1.3%"},
-        {"code": "3231", "name": "緯創", "price": 142, "change": "+9.7%"},
-        {"code": "2317", "name": "鴻海", "price": 198, "change": "+3.5%"},
-    ]
+            # 獲取資料
+            start_date = (now - timedelta(days=6)).strftime('%Y-%m-%d')  # 過去5日 + 今日
+            data = yf.download(tickers, start=start_date)['Adj Close']
+            volume = yf.download(tickers, start=start_date)['Volume']
 
-    filtered = [s for s in stocks if search.lower() in s["code"].lower() or search.lower() in s["name"].lower()] if search else stocks
+            # 計算條件
+            selected = []
+            for ticker in tickers:
+                try:
+                    today_close = data[ticker].iloc[-1]
+                    yesterday_close = data[ticker].iloc[-2]
+                    change = ((today_close - yesterday_close) / yesterday_close) * 100
 
-    if filtered:
-        cols = st.columns(2)
-        for i, stock in enumerate(filtered):
-            with cols[i % 2]:
-                change_color = "#00ff9d" if "+" in stock["change"] else "#ff4d4d"
-                st.markdown(f"""
-                <div class="card" style="padding:20px; text-align:center;">
-                    <div style="font-size:1.6rem; font-weight:900;">{stock['name']}</div>
-                    <div style="font-size:2.2rem; color:#00ff9d; margin:10px 0;">{stock['price']}</div>
-                    <div style="font-size:1.4rem; color:{change_color};">{stock['change']}</div>
-                    <div style="font-size:1.1rem; opacity:0.8;">{stock['code']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.info("無符合搜尋結果")
+                    avg_volume = volume[ticker].iloc[-6:-1].mean()  # 過去5日平均成交量
+                    today_volume = volume[ticker].iloc[-1]
 
+                    # 你的條件（根據對話推測，調整為漲幅 >5%, 成交量 >平均1.5倍, 價格 >100）
+                    if change > 5 and today_volume > avg_volume * 1.5 and today_close > 100:
+                        selected.append((ticker, change, today_close))
+                except Exception as e:
+                    pass
+
+            # 選前3支（按漲幅降序）
+            selected = sorted(selected, key=lambda x: x[1], reverse=True)[:3]
+
+            if selected:
+                st.success("根據你的條件選出3支股票：")
+                cols = st.columns(3)
+                for i, (ticker, change, price) in enumerate(selected):
+                    with cols[i]:
+                        name = yf.Ticker(ticker).info.get('shortName', ticker)
+                        st.markdown(f"""
+                        <div class="card" style="padding:20px; text-align:center;">
+                            <div style="font-size:1.4rem; font-weight:900;">{name}</div>
+                            <div style="font-size:1.8rem; color:#00ff9d;">{round(price, 2)}</div>
+                            <div style="font-size:1.2rem; color:#00ff9d;">+{round(change, 2)}%</div>
+                            <div>{ticker}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.warning("今日沒有符合條件的股票")
+        else:
+            st.warning("現在不是收盤後，請在13:30後再試")
+
+    # 登出
     if st.button("登出"):
         st.session_state.logged_in = False
         st.rerun()
