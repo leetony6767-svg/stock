@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - 完全照參考圖
+# CSS - 完全照參考圖（深紫紅背景、星星閃爍、金色標題、白色文字、橘金按鈕）
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -136,14 +136,13 @@ with st.sidebar:
                 })
             st.dataframe(pd.DataFrame(user_list))
 
-            # 刪除功能
             delete_phone = st.selectbox("刪除客戶", list(st.session_state.users.keys()))
             if st.button("刪除此客戶"):
                 del st.session_state.users[delete_phone]
                 st.success(f"已刪除 {delete_phone}")
                 st.rerun()
         else:
-            st.info("目前沒有客戶資料")
+            st.info("目前沒有客戶")
 
         st.subheader("新增/編輯客戶")
         new_phone = st.text_input("手機號碼")
@@ -209,7 +208,6 @@ if not st.session_state.logged_in:
     bank = st.session_state.bank_info
     st.markdown(f"""
         <div class='footer-text'>
-            已經有帳號了？點我登入<br>
             銀行轉帳資訊：{bank}
         </div>
     """, unsafe_allow_html=True)
@@ -218,7 +216,7 @@ if not st.session_state.logged_in:
 
 else:
     # ──────────────────────────────────────────────
-    # 客戶主頁 + 選股
+    # 已登入客戶頁面 + 選股
     # ──────────────────────────────────────────────
     st.markdown("<h1>強棒飆股</h1>", unsafe_allow_html=True)
     st.subheader(f"歡迎 {st.session_state.phone}")
@@ -243,35 +241,29 @@ else:
                     if len(closes) < 3:
                         continue
 
-                    # 連續三天上漲
                     last3 = closes[-3:]
                     if not all(last3.diff()[1:] > 0):
                         continue
 
-                    # 單日漲幅不超過7%
                     daily_chg = closes.pct_change() * 100
                     if (daily_chg[-3:] > 7).any():
                         continue
 
-                    # 近兩天換手率前100（簡化為成交量放大）
                     volumes = data['Volume'][t].dropna()
                     avg_vol = volumes[:-2].mean()
                     recent_vol = volumes[-2:].mean()
                     if recent_vol < avg_vol * 2:
                         continue
 
-                    # 90日內至少3次漲停
                     limit_up_days = (daily_chg >= 9.8).sum()
                     if limit_up_days < 3:
                         continue
 
-                    # 剔除上市超過1個月（yfinance 無直接上市日，這裡用歷史資料長度近似）
                     if len(closes) > 30:
                         continue
 
-                    # 獲利籌碼 >70% 且 ≤80%（用成交量集中度近似）
                     vol_concentration = volumes[-90:].max() / volumes[-90:].mean()
-                    if vol_concentration < 1.5 or vol_concentration > 2.0:
+                    if vol_concentration > 2.0:
                         continue
 
                     selected.append((t, closes[-1], daily_chg[-1]))
@@ -279,7 +271,6 @@ else:
                 except:
                     pass
 
-            # 保證3支
             if len(selected) < 3:
                 all_chg = []
                 for t in tickers:
