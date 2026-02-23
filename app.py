@@ -1,8 +1,5 @@
 import streamlit as st
 from datetime import datetime, timedelta
-import pandas as pd
-import yfinance as yf
-import pytz
 
 # 頁面設定
 st.set_page_config(
@@ -12,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - 標題白色、四個字平行、照截圖樣式
+# CSS - 標題白色、四個字平行縮小、照參考圖樣式
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -49,32 +46,32 @@ st.markdown("""
 
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
-        font-size: 5rem !important;
+        font-size: 3.5rem !important;  /* 縮小 */
         font-weight: 900 !important;
         color: white !important;
         text-shadow: 0 0 40px rgba(255,255,255,0.7) !important;
-        letter-spacing: 0.6em !important;  /* 平行排列調整 */
+        letter-spacing: 1.2em !important;  /* 加大間距，讓四個字平行一起 */
         line-height: 1.0 !important;
         text-align: center !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 20px !important;
         white-space: nowrap !important;
     }
 
     .subtitle {
-        font-size: 2.8rem !important;
+        font-size: 2.2rem !important;
         color: white !important;
         text-align: center !important;
         margin-bottom: 50px !important;
     }
 
     .stButton > button {
-        background: linear-gradient(90deg, #ff6b00, #ff8c00, #ffa500) !important;
+        background: black !important;  /* 登入按鈕黑色背景 */
         color: white !important;
         border-radius: 50px !important;
         padding: 20px !important;
         font-size: 24px !important;
         font-weight: 900 !important;
-        box-shadow: 0 10px 30px rgba(255,107,0,0.7) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.7) !important;
         border: none !important;
         width: 100% !important;
         margin: 20px 0 !important;
@@ -82,7 +79,7 @@ st.markdown("""
 
     .stButton > button:hover {
         transform: scale(1.05) !important;
-        box-shadow: 0 15px 40px rgba(255,107,0,1) !important;
+        box-shadow: 0 15px 40px rgba(0,0,0,1) !important;
     }
 
     .footer-text {
@@ -90,12 +87,6 @@ st.markdown("""
         color: white !important;
         margin-top: 40px !important;
         font-size: 1.2rem !important;
-    }
-
-    .footer-link {
-        color: white !important;
-        text-decoration: underline !important;
-        cursor: pointer !important;
     }
 
     .stTextInput > div > div > input {
@@ -123,7 +114,7 @@ if 'logged_in' not in st.session_state:
     st.session_state.is_admin = False
 
 # 後台密碼
-ADMIN_PASSWORD = "akk21688"
+ADMIN_PASSWORD = "akk121688"
 
 # 後台（左側邊欄）
 with st.sidebar:
@@ -146,7 +137,6 @@ with st.sidebar:
                 })
             st.dataframe(pd.DataFrame(user_list))
 
-            # 刪除客戶
             delete_phone = st.selectbox("刪除客戶", list(st.session_state.users.keys()))
             if st.button("刪除此客戶"):
                 del st.session_state.users[delete_phone]
@@ -173,7 +163,7 @@ with st.sidebar:
             else:
                 st.error("請輸入手機號碼")
 
-        st.subheader("銀行帳戶修改（客戶看得到）")
+        st.subheader("銀行帳戶修改")
         bank = st.text_area("銀行帳戶 / 轉帳方式")
         if st.button("儲存銀行資訊"):
             st.session_state.bank_info = bank
@@ -191,28 +181,22 @@ if not st.session_state.logged_in:
 
     phone = st.text_input("手機號碼")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("登入"):
-            if phone.strip():
-                if phone.strip() in st.session_state.users:
-                    info = st.session_state.users[phone.strip()]
-                    expire = info['expire_date']
-                    if expire >= datetime.now().date():
-                        st.session_state.logged_in = True
-                        st.session_state.phone = phone.strip()
-                        st.success("登入成功")
-                        st.rerun()
-                    else:
-                        st.error(f"會員已到期：{expire.strftime('%Y-%m-%d')}")
+    if st.button("登入"):
+        if phone.strip():
+            if phone.strip() in st.session_state.users:
+                info = st.session_state.users[phone.strip()]
+                expire = info['expire_date']
+                if expire >= datetime.now().date():
+                    st.session_state.logged_in = True
+                    st.session_state.phone = phone.strip()
+                    st.success("登入成功")
+                    st.rerun()
                 else:
-                    st.error("未註冊，請付費後由管理員開通")
+                    st.error(f"會員已到期：{expire.strftime('%Y-%m-%d')}")
             else:
-                st.error("請輸入手機號碼")
-
-    with col2:
-        if st.button("註冊"):
-            st.info("請聯絡管理員註冊")
+                st.error("未註冊，請付費後由管理員開通")
+        else:
+            st.error("請輸入手機號碼")
 
     bank = st.session_state.bank_info
     st.markdown(f"""
