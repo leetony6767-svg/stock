@@ -1,5 +1,8 @@
 import streamlit as st
 from datetime import datetime, timedelta
+import pandas as pd
+import yfinance as yf
+import pytz
 
 # 頁面設定
 st.set_page_config(
@@ -9,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - 標題白色、四個字平行縮小、照參考圖樣式
+# CSS - 標題字間隔縮小、平行排列、照截圖樣式
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -46,11 +49,11 @@ st.markdown("""
 
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
-        font-size: 3.5rem !important;  /* 縮小 */
+        font-size: 4.2rem !important;  /* 與參考圖大小一致 */
         font-weight: 900 !important;
         color: white !important;
         text-shadow: 0 0 40px rgba(255,255,255,0.7) !important;
-        letter-spacing: 1.2em !important;  /* 加大間距，讓四個字平行一起 */
+        letter-spacing: 0.8em !important;  /* 字間隔縮小，讓四個字更平行緊密 */
         line-height: 1.0 !important;
         text-align: center !important;
         margin-bottom: 20px !important;
@@ -58,7 +61,7 @@ st.markdown("""
     }
 
     .subtitle {
-        font-size: 2.2rem !important;
+        font-size: 2.5rem !important;
         color: white !important;
         text-align: center !important;
         margin-bottom: 50px !important;
@@ -101,7 +104,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 客戶資料庫（用 session_state 暫存）
+# 客戶資料庫
 if 'users' not in st.session_state:
     st.session_state.users = {}
 
@@ -172,7 +175,7 @@ with st.sidebar:
         if admin_pass:
             st.error("密碼錯誤")
 
-# 前台登入頁（照截圖）
+# 前台登入頁
 if not st.session_state.logged_in:
     st.markdown("<div class='stars-bg'></div>", unsafe_allow_html=True)
     st.markdown("<h1>強棒飆股</h1>", unsafe_allow_html=True)
@@ -273,7 +276,7 @@ else:
                         pass
                 selected = sorted(all_chg, key=lambda x: x[2], reverse=True)[:3]
 
-            st.success("今日強棒飆股推薦（嚴格符合條件）")
+            st.success("今日強棒飆股推薦")
             cols = st.columns(3)
             for i, (t, price, chg) in enumerate(selected):
                 with cols[i]:
