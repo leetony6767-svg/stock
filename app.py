@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - 標題字間隔縮小、平行排列、照截圖樣式
+# CSS - 標題四個字間距調整成一個字距離約兩公分、白色、平行
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -49,11 +49,11 @@ st.markdown("""
 
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
-        font-size: 4.2rem !important;  /* 與參考圖大小一致 */
+        font-size: 4rem !important;
         font-weight: 900 !important;
         color: white !important;
         text-shadow: 0 0 40px rgba(255,255,255,0.7) !important;
-        letter-spacing: 0.8em !important;  /* 字間隔縮小，讓四個字更平行緊密 */
+        letter-spacing: 2em !important;  /* 一個字距離約兩公分 */
         line-height: 1.0 !important;
         text-align: center !important;
         margin-bottom: 20px !important;
@@ -68,7 +68,7 @@ st.markdown("""
     }
 
     .stButton > button {
-        background: black !important;  /* 登入按鈕黑色背景 */
+        background: black !important;
         color: white !important;
         border-radius: 50px !important;
         padding: 20px !important;
@@ -133,10 +133,10 @@ with st.sidebar:
             user_list = []
             for phone, info in st.session_state.users.items():
                 user_list.append({
-                    "手機號碼": phone,
-                    "到期日": info['expire_date'].strftime("%Y-%m-%d") if info['expire_date'] else "無",
-                    "付費": "是" if info['paid'] else "否",
-                    "備註": info['notes']
+                    "phone": phone,
+                    "expire_date": info['expire_date'].strftime("%Y-%m-%d") if info['expire_date'] else "無",
+                    "paid": "是" if info['paid'] else "否",
+                    "notes": info['notes']
                 })
             st.dataframe(pd.DataFrame(user_list))
 
@@ -216,7 +216,6 @@ else:
     info = st.session_state.users[st.session_state.phone]
     st.write(f"會員有效期至：{info['expire_date'].strftime('%Y-%m-%d')}")
 
-    # 選股按鈕
     if st.button("選股"):
         tz = pytz.timezone("Asia/Taipei")
         now = datetime.now(tz)
