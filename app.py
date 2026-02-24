@@ -88,7 +88,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 客戶資料永久儲存（用 pickle）
+# 客戶資料永久儲存
 DATA_FILE = "users.pkl"
 if os.path.exists(DATA_FILE):
     try:
