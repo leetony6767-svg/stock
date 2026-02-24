@@ -6,25 +6,35 @@ import pytz
 import pickle
 import os
 
-# 頁面設定
-st.set_page_config(
-    page_title="強棒飆股",
-    page_icon="📈",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-# 隱藏預設元素，只留 Share
+# 隱藏 Streamlit Cloud 預設元素，只留 Share (複製連結)
 st.markdown("""
     <style>
+    /* 隱藏頂部工具列大部分元素，只留 Share */
     header { visibility: hidden !important; }
     .stDeployButton { display: none !important; }
     .stApp > div:first-child { display: none !important; }
     .stApp > div:last-child { display: none !important; }
+
+    /* 強制只顯示 Share 按鈕 */
+    [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; border: none !important; }
+    [data-testid="stToolbar"] button:not([kind="primary"]) { display: none !important; }
+    [data-testid="stToolbar"] button[kind="primary"] { visibility: visible !important; }
+
+    /* 調整 Share 按鈕位置 */
+    [data-testid="stToolbar"] {
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        z-index: 9999 !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    /* 隱藏側邊欄（後台用時再開） */
     section[data-testid="stSidebar"] { display: none !important; }
 
-    .stApp [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; position: fixed !important; top: 10px !important; right: 10px !important; z-index: 999 !important; }
-    .stApp [data-testid="stToolbar"] button[kind="primary"] { visibility: visible !important; }
+    /* 隱藏任何翻譯或額外框 */
+    .stAlert, .stException { display: none !important; }
 
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
@@ -86,8 +96,11 @@ st.markdown("""
 # 客戶資料永久儲存
 DATA_FILE = "users.pkl"
 if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "rb") as f:
-        st.session_state.users = pickle.load(f)
+    try:
+        with open(DATA_FILE, "rb") as f:
+            st.session_state.users = pickle.load(f)
+    except:
+        st.session_state.users = {}
 else:
     st.session_state.users = {}
 
@@ -100,13 +113,16 @@ if 'logged_in' not in st.session_state:
     st.session_state.is_admin = False
 
 def save_users():
-    with open(DATA_FILE, "wb") as f:
-        pickle.dump(st.session_state.users, f)
+    try:
+        with open(DATA_FILE, "wb") as f:
+            pickle.dump(st.session_state.users, f)
+    except:
+        pass
 
 # 後台密碼
 ADMIN_PASSWORD = "akk121688"
 
-# 後台
+# 後台（側邊欄）
 with st.sidebar:
     st.title("後台管理")
     admin_pass = st.text_input("後台密碼", type="password")
@@ -286,7 +302,7 @@ else:
                     st.warning("現在不是收盤後，請在13:30後再試")
             except Exception as e:
                 st.error("API 請求過多或網路問題，請等待 15-30 分鐘後再試，或換網路/VPN")
-                st.write("錯誤訊息（僅供參考）：", str(e))
+                st.write("錯誤訊息：", str(e))
 
     if st.button("登出"):
         st.session_state.logged_in = False
