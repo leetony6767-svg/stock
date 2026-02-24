@@ -1,8 +1,5 @@
 import streamlit as st
-from datetime import datetime, timedelta
-import pandas as pd
-import pickle
-import os
+from datetime import datetime
 
 # 頁面設定
 st.set_page_config(
@@ -27,6 +24,7 @@ st.markdown("""
     [data-testid="stToolbar"] button:not([kind="primary"]) { display: none !important; }
     [data-testid="stToolbar"] button[kind="primary"] { visibility: visible !important; }
 
+    /* 調整 Share 按鈕位置 */
     [data-testid="stToolbar"] {
         position: fixed !important;
         top: 10px !important;
@@ -90,7 +88,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 客戶資料永久儲存
+# 客戶資料永久儲存（用 pickle）
 DATA_FILE = "users.pkl"
 if os.path.exists(DATA_FILE):
     try:
@@ -119,7 +117,7 @@ def save_users():
 # 後台密碼
 ADMIN_PASSWORD = "akk121688"
 
-# 後台（左側邊欄）
+# 後台（側邊欄）
 with st.sidebar:
     st.title("後台管理")
     admin_pass = st.text_input("後台密碼", type="password")
@@ -133,10 +131,10 @@ with st.sidebar:
             user_list = []
             for phone, info in st.session_state.users.items():
                 user_list.append({
-                    "phone": phone,
-                    "expire_date": info['expire_date'].strftime("%Y-%m-%d") if info['expire_date'] else "無",
-                    "paid": "是" if info['paid'] else "否",
-                    "notes": info['notes']
+                    "手機號碼": phone,
+                    "到期日期": info['expire_date'].strftime("%Y-%m-%d") if info['expire_date'] else "無",
+                    "已付費": "是" if info['paid'] else "否",
+                    "備註": info['notes']
                 })
             st.dataframe(pd.DataFrame(user_list))
 
