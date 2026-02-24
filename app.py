@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 隱藏 Streamlit Cloud 預設元素，只留 Share（複製連結）按鈕
+# 隱藏 Streamlit Cloud 預設元素，只留 Share (複製連結) 按鈕
 st.markdown("""
     <style>
     /* 完全隱藏頂部工具列、星號、鉛筆、翻譯框、管理應用等 */
