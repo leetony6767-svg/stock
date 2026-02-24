@@ -6,36 +6,42 @@ import pytz
 import pickle
 import os
 
-# 隱藏 Streamlit Cloud 預設元素，只留 Share (複製連結)
+# 頁面設定
+st.set_page_config(
+    page_title="強棒飆股",
+    page_icon="📈",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# 隱藏 Streamlit Cloud 預設元素，只留 Share（複製連結）按鈕
 st.markdown("""
     <style>
-    /* 隱藏頂部工具列大部分元素，只留 Share */
+    /* 完全隱藏頂部工具列、星號、鉛筆、翻譯框、管理應用等 */
     header { visibility: hidden !important; }
     .stDeployButton { display: none !important; }
     .stApp > div:first-child { display: none !important; }
     .stApp > div:last-child { display: none !important; }
+    .stAlert, .stException { display: none !important; }
 
-    /* 強制只顯示 Share 按鈕 */
-    [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; border: none !important; }
+    /* 只強制顯示 Share 按鈕 */
+    [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; border: none !important; padding: 0 !important; }
     [data-testid="stToolbar"] button:not([kind="primary"]) { display: none !important; }
     [data-testid="stToolbar"] button[kind="primary"] { visibility: visible !important; }
 
-    /* 調整 Share 按鈕位置 */
+    /* 調整 Share 按鈕位置（右上角） */
     [data-testid="stToolbar"] {
         position: fixed !important;
         top: 10px !important;
         right: 10px !important;
         z-index: 9999 !important;
         background: transparent !important;
-        padding: 0 !important;
     }
 
-    /* 隱藏側邊欄（後台用時再開） */
+    /* 隱藏側邊欄（客戶看不到，後台用時再開） */
     section[data-testid="stSidebar"] { display: none !important; }
 
-    /* 隱藏任何翻譯或額外框 */
-    .stAlert, .stException { display: none !important; }
-
+    /* 標題四個字平行連在一起 */
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
         font-size: 4rem !important;
@@ -93,7 +99,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 客戶資料永久儲存
+# 客戶資料永久儲存（用 pickle）
 DATA_FILE = "users.pkl"
 if os.path.exists(DATA_FILE):
     try:
