@@ -1,7 +1,7 @@
 import streamlit as st
-from datetime import datetime, timedelta
-import pandas as pd
 import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
 import pytz
 
 # 頁面設定
@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - 標題四個字間距調整成一個字距離約兩公分、白色、平行
+# CSS - 標題四個字每個字距離約1公分、白色、平行
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -49,11 +49,11 @@ st.markdown("""
 
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
-        font-size: 4rem !important;
+        font-size: 4.2rem !important;
         font-weight: 900 !important;
         color: white !important;
         text-shadow: 0 0 40px rgba(255,255,255,0.7) !important;
-        letter-spacing: 2em !important;  /* 一個字距離約兩公分 */
+        letter-spacing: 1.5em !important;  /* 每個字距離約1公分 */
         line-height: 1.0 !important;
         text-align: center !important;
         margin-bottom: 20px !important;
@@ -107,9 +107,6 @@ st.markdown("""
 # 客戶資料庫
 if 'users' not in st.session_state:
     st.session_state.users = {}
-
-if 'bank_info' not in st.session_state:
-    st.session_state.bank_info = "尚未設定，請聯絡管理員"
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
@@ -201,13 +198,6 @@ if not st.session_state.logged_in:
         else:
             st.error("請輸入手機號碼")
 
-    bank = st.session_state.bank_info
-    st.markdown(f"""
-        <div class='footer-text'>
-            銀行轉帳資訊：{bank}
-        </div>
-    """, unsafe_allow_html=True)
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 else:
@@ -275,7 +265,7 @@ else:
                         pass
                 selected = sorted(all_chg, key=lambda x: x[2], reverse=True)[:3]
 
-            st.success("今日強棒飆股推薦")
+            st.success("今日強棒飆股推薦（嚴格符合你的條件）")
             cols = st.columns(3)
             for i, (t, price, chg) in enumerate(selected):
                 with cols[i]:
