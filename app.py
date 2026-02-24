@@ -14,29 +14,18 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 隱藏 Streamlit Cloud 預設元素，只留 Share
+# 隱藏預設元素，只留 Share
 st.markdown("""
     <style>
-    /* 隱藏頂部所有元素，只留 Share */
     header { visibility: hidden !important; }
     .stDeployButton { display: none !important; }
-    .stApp > div:first-child { display: none !important; }  /* 隱藏頂部工具列 */
-    .stApp > div:last-child { display: none !important; }   /* 隱藏底部管理應用 */
-    section[data-testid="stSidebar"] { display: none !important; }  /* 隱藏側邊欄（後台用時再開） */
+    .stApp > div:first-child { display: none !important; }
+    .stApp > div:last-child { display: none !important; }
+    section[data-testid="stSidebar"] { display: none !important; }
 
-    /* 只保留 Share 按鈕 */
+    .stApp [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; position: fixed !important; top: 10px !important; right: 10px !important; z-index: 999 !important; }
     .stApp [data-testid="stToolbar"] button[kind="primary"] { visibility: visible !important; }
-    .stApp [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; }
 
-    /* 調整 Share 位置 */
-    .stApp [data-testid="stToolbar"] {
-        position: fixed !important;
-        top: 10px !important;
-        right: 10px !important;
-        z-index: 999 !important;
-    }
-
-    /* 標題四個字平行連在一起 */
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
         font-size: 4rem !important;
@@ -94,7 +83,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 客戶資料永久儲存（用 pickle）
+# 客戶資料永久儲存
 DATA_FILE = "users.pkl"
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "rb") as f:
@@ -110,7 +99,6 @@ if 'logged_in' not in st.session_state:
     st.session_state.phone = None
     st.session_state.is_admin = False
 
-# 保存客戶資料
 def save_users():
     with open(DATA_FILE, "wb") as f:
         pickle.dump(st.session_state.users, f)
@@ -118,7 +106,7 @@ def save_users():
 # 後台密碼
 ADMIN_PASSWORD = "akk121688"
 
-# 後台（左側邊欄）
+# 後台
 with st.sidebar:
     st.title("後台管理")
     admin_pass = st.text_input("後台密碼", type="password")
@@ -218,79 +206,87 @@ else:
         """, unsafe_allow_html=True)
 
     if st.button("選股"):
-        tz = pytz.timezone("Asia/Taipei")
-        now = datetime.now(tz)
-        close_time = now.replace(hour=13, minute=30, second=0)
+        with st.spinner("正在抓取資料，請稍候..."):
+            try:
+                tz = pytz.timezone("Asia/Taipei")
+                now = datetime.now(tz)
+                close_time = now.replace(hour=13, minute=30, second=0)
 
-        if now > close_time:
-            tickers = ["2330.TW", "2454.TW", "2382.TW", "3231.TW", "2317.TW", "3711.TW", "3661.TW", "2303.TW", "2891.TW", "2881.TW"]
+                if now > close_time:
+                    tickers = ["2330.TW", "2454.TW", "2382.TW", "3231.TW", "2317.TW", "3711.TW", "3661.TW", "2303.TW", "2891.TW", "2881.TW"]
 
-            start = (now - timedelta(days=90)).strftime("%Y-%m-%d")
-            data = yf.download(tickers, start=start, progress=False)
+                    start = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+                    data = yf.download(tickers, start=start, progress=False)
 
-            selected = []
-            for t in tickers:
-                try:
-                    closes = data['Adj Close'][t].dropna()
-                    if len(closes) < 3:
-                        continue
+                    selected = []
+                    for t in tickers:
+                        try:
+                            closes = data['Adj Close'][t].dropna()
+                            if len(closes) < 3:
+                                continue
 
-                    last3 = closes[-3:]
-                    if not all(last3.diff()[1:] > 0):
-                        continue
+                            last3 = closes[-3:]
+                            if not all(last3.diff()[1:] > 0):
+                                continue
 
-                    daily_chg = closes.pct_change() * 100
-                    if (daily_chg[-3:] > 7).any():
-                        continue
+                            daily_chg = closes.pct_change() * 100
+                            if (daily_chg[-3:] > 7).any():
+                                continue
 
-                    volumes = data['Volume'][t].dropna()
-                    avg_vol = volumes[:-2].mean()
-                    recent_vol = volumes[-2:].mean()
-                    if recent_vol < avg_vol * 2:
-                        continue
+                            volumes = data['Volume'][t].dropna()
+                            avg_vol = volumes[:-2].mean()
+                            recent_vol = volumes[-2:].mean()
+                            if recent_vol < avg_vol * 2:
+                                continue
 
-                    limit_up_days = (daily_chg >= 9.8).sum()
-                    if limit_up_days < 3:
-                        continue
+                            limit_up_days = (daily_chg >= 9.8).sum()
+                            if limit_up_days < 3:
+                                continue
 
-                    if len(closes) > 30:
-                        continue
+                            if len(closes) > 30:
+                                continue
 
-                    vol_concentration = volumes[-90:].max() / volumes[-90:].mean()
-                    if vol_concentration > 2.0:
-                        continue
+                            vol_concentration = volumes[-90:].max() / volumes[-90:].mean()
+                            if vol_concentration > 2.0:
+                                continue
 
-                    selected.append((t, closes[-1], daily_chg[-1]))
+                            selected.append((t, closes[-1], daily_chg[-1]))
 
-                except:
-                    pass
+                        except:
+                            pass
 
-            if len(selected) < 3:
-                all_chg = []
-                for t in tickers:
-                    try:
-                        close = data['Adj Close'][t].iloc[-1]
-                        chg = data['Adj Close'][t].pct_change().iloc[-1] * 100
-                        all_chg.append((t, close, chg))
-                    except:
-                        pass
-                selected = sorted(all_chg, key=lambda x: x[2], reverse=True)[:3]
+                    if len(selected) < 3:
+                        all_chg = []
+                        for t in tickers:
+                            try:
+                                close = data['Adj Close'][t].iloc[-1]
+                                chg = data['Adj Close'][t].pct_change().iloc[-1] * 100
+                                all_chg.append((t, close, chg))
+                            except:
+                                pass
+                        selected = sorted(all_chg, key=lambda x: x[2], reverse=True)[:3]
 
-            st.success("今日強棒飆股推薦（嚴格符合你的條件）")
-            cols = st.columns(3)
-            for i, (t, price, chg) in enumerate(selected):
-                with cols[i]:
-                    name = yf.Ticker(t).info.get('shortName', t)
-                    st.markdown(f"""
-                    <div class="card" style="padding:20px; text-align:center;">
-                        <div style="font-size:1.4rem; font-weight:900;">{name}</div>
-                        <div style="font-size:1.8rem; color:#00ff9d;">{round(price, 2)}</div>
-                        <div style="font-size:1.2rem; color:#00ff9d;">+{round(chg, 2)}%</div>
-                        <div>{t}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.warning("現在不是收盤後，請在13:30後再試")
+                    if selected:
+                        st.success("今日強棒飆股推薦")
+                        cols = st.columns(3)
+                        for i, (t, price, chg) in enumerate(selected):
+                            with cols[i]:
+                                name = yf.Ticker(t).info.get('shortName', t)
+                                st.markdown(f"""
+                                <div class="card" style="padding:20px; text-align:center;">
+                                    <div style="font-size:1.4rem; font-weight:900;">{name}</div>
+                                    <div style="font-size:1.8rem; color:#00ff9d;">{round(price, 2)}</div>
+                                    <div style="font-size:1.2rem; color:#00ff9d;">+{round(chg, 2)}%</div>
+                                    <div>{t}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                    else:
+                        st.warning("今日無符合條件股票，或資料延遲，請稍後再試")
+                else:
+                    st.warning("現在不是收盤後，請在13:30後再試")
+            except Exception as e:
+                st.error("API 請求過多或網路問題，請等待 15-30 分鐘後再試，或換網路/VPN")
+                st.write("錯誤訊息（僅供參考）：", str(e))
 
     if st.button("登出"):
         st.session_state.logged_in = False
