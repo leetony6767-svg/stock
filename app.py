@@ -3,6 +3,8 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import pytz
+import pickle
+import os
 
 # 頁面設定
 st.set_page_config(
@@ -12,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - 標題四個字每個字距離約1公分、白色、平行
+# CSS - 標題四個字平行連在一起、白色
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900;700;500&display=swap');
@@ -49,11 +51,11 @@ st.markdown("""
 
     h1 {
         font-family: 'Noto Sans TC', sans-serif !important;
-        font-size: 4.2rem !important;
+        font-size: 4rem !important;
         font-weight: 900 !important;
         color: white !important;
         text-shadow: 0 0 40px rgba(255,255,255,0.7) !important;
-        letter-spacing: 1.5em !important;  /* 每個字距離約1公分 */
+        letter-spacing: 0.3em !important;  /* 四個字平行連在一起 */
         line-height: 1.0 !important;
         text-align: center !important;
         margin-bottom: 20px !important;
@@ -104,9 +106,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 客戶資料庫
-if 'users' not in st.session_state:
+# 客戶資料永久儲存（用 pickle 檔案）
+DATA_FILE = "users.pkl"
+if os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "rb") as f:
+        st.session_state.users = pickle.load(f)
+else:
     st.session_state.users = {}
+
+if 'bank_info' not in st.session_state:
+    st.session_state.bank_info = ""
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
@@ -115,6 +124,11 @@ if 'logged_in' not in st.session_state:
 
 # 後台密碼
 ADMIN_PASSWORD = "akk121688"
+
+# 保存客戶資料函數
+def save_users():
+    with open(DATA_FILE, "wb") as f:
+        pickle.dump(st.session_state.users, f)
 
 # 後台（左側邊欄）
 with st.sidebar:
@@ -140,6 +154,7 @@ with st.sidebar:
             delete_phone = st.selectbox("刪除客戶", list(st.session_state.users.keys()))
             if st.button("刪除此客戶"):
                 del st.session_state.users[delete_phone]
+                save_users()
                 st.success(f"已刪除 {delete_phone}")
                 st.rerun()
         else:
@@ -158,6 +173,7 @@ with st.sidebar:
                     'paid': paid,
                     'notes': notes
                 }
+                save_users()
                 st.success(f"已儲存 {new_phone}")
                 st.rerun()
             else:
@@ -206,6 +222,13 @@ else:
     info = st.session_state.users[st.session_state.phone]
     st.write(f"會員有效期至：{info['expire_date'].strftime('%Y-%m-%d')}")
 
+    if st.session_state.bank_info:
+        st.markdown(f"""
+            <div class='footer-text'>
+                銀行轉帳資訊：{st.session_state.bank_info}
+            </div>
+        """, unsafe_allow_html=True)
+
     if st.button("選股"):
         tz = pytz.timezone("Asia/Taipei")
         now = datetime.now(tz)
@@ -215,7 +238,7 @@ else:
             tickers = ["2330.TW", "2454.TW", "2382.TW", "3231.TW", "2317.TW", "3711.TW", "3661.TW", "2303.TW", "2891.TW", "2881.TW"]
 
             start = (now - timedelta(days=90)).strftime("%Y-%m-%d")
-            data = yf.download(tickers, start=start)
+            data = yf.download(tickers, start=start, progress=False)
 
             selected = []
             for t in tickers:
