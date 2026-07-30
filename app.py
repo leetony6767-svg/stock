@@ -1,236 +1,142 @@
+
 import streamlit as st
-from datetime import datetime
 
-# 頁面設定
-st.set_page_config(
-    page_title="強棒飆股",
-    page_icon="📈",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
+# 1. 頁面基礎設定 (手機 App 模式)
+st.set_page_config(page_title="強棒法律工作台", page_icon="⚖️", layout="centered")
 
-# 隱藏所有不必要的元素，只留「Share」（複製連結）按鈕
+# 2. 完全依照圖片設計的 CSS 樣式
 st.markdown("""
     <style>
-    header { visibility: hidden !important; }
-    .stDeployButton { display: none !important; }
-    .stApp > div:first-child { display: none !important; }
-    .stApp > div:last-child { display: none !important; }
-    .stAlert, .stException { display: none !important; }
-    section[data-testid="stSidebar"] { display: none !important; }
-
-    /* 只顯示 Share 按鈕 */
-    [data-testid="stToolbar"] { visibility: visible !important; background: transparent !important; border: none !important; padding: 0 !important; }
-    [data-testid="stToolbar"] button:not([kind="primary"]) { display: none !important; }
-    [data-testid="stToolbar"] button[kind="primary"] { visibility: visible !important; }
-
-    /* 調整 Share 按鈕位置 */
-    [data-testid="stToolbar"] {
-        position: fixed !important;
-        top: 10px !important;
-        right: 10px !important;
-        z-index: 9999 !important;
+    /* 隱藏 Streamlit 原生元素 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* 背景顏色 */
+    .stApp {
+        background-color: #F9F8F4;
     }
-
-    h1 {
-        font-family: 'Noto Sans TC', sans-serif !important;
-        font-size: 4rem !important;
-        font-weight: 900 !important;
-        color: white !important;
-        text-shadow: 0 0 40px rgba(255,255,255,0.7) !important;
-        letter-spacing: 0.3em !important;
-        line-height: 1.0 !important;
-        text-align: center !important;
-        margin-bottom: 20px !important;
-        white-space: nowrap !important;
+    
+    /* 標題樣式 */
+    .main-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #1A1A1A;
+        margin-bottom: 2px;
     }
-
-    .subtitle {
-        font-size: 2.5rem !important;
-        color: white !important;
-        text-align: center !important;
-        margin-bottom: 50px !important;
+    .sub-title {
+        font-size: 14px;
+        color: #8E8E8E;
+        margin-bottom: 20px;
     }
-
+    
+    /* 合約標籤選擇器 (Pills) */
     .stButton > button {
-        background: black !important;
-        color: white !important;
-        border-radius: 50px !important;
-        padding: 20px !important;
-        font-size: 24px !important;
-        font-weight: 900 !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.7) !important;
-        border: none !important;
-        width: 100% !important;
-        margin: 20px 0 !important;
+        border-radius: 20px;
+        border: 1px solid #E0E0E0;
+        background-color: white;
+        color: #4A4A4A;
+        padding: 5px 15px;
+        font-size: 14px;
+        transition: all 0.3s;
     }
-
     .stButton > button:hover {
-        transform: scale(1.05) !important;
+        background-color: #1E293B;
+        color: white;
+        border-color: #1E293B;
     }
-
-    .footer-text {
-        text-align: center !important;
+    
+    /* 主要執行按鈕 (開始審查) */
+    div.stButton > button:first-child {
+        background-color: #1E293B !important;
         color: white !important;
-        margin-top: 40px !important;
-        font-size: 1.2rem !important;
+        width: 100%;
+        height: 55px;
+        font-size: 18px;
+        font-weight: 700;
+        border-radius: 12px;
+        margin-top: 20px;
+        border: none;
     }
-
-    .stTextInput > div > div > input {
-        background: rgba(255,255,255,0.15) !important;
-        color: white !important;
-        border: 2px solid white !important;
-        border-radius: 30px !important;
-        padding: 18px !important;
-        font-size: 20px !important;
-        text-align: center !important;
+    
+    /* 輸入框樣式 */
+    .stTextArea textarea {
+        background-color: white !important;
+        border-radius: 12px !important;
+        border: 1px solid #E0E0E0 !important;
+        padding: 15px !important;
+    }
+    
+    /* 底部導覽列 (模擬圖片效果) */
+    .nav-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 70px;
+        background-color: #1E293B;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+    }
+    .nav-item {
+        color: #94A3B8;
+        text-align: center;
+        font-size: 10px;
+        text-decoration: none;
+    }
+    .nav-item.active {
+        color: white;
     }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# 客戶資料永久儲存
-DATA_FILE = "users.pkl"
-if os.path.exists(DATA_FILE):
-    try:
-        with open(DATA_FILE, "rb") as f:
-            st.session_state.users = pickle.load(f)
-    except:
-        st.session_state.users = {}
-else:
-    st.session_state.users = {}
+# 3. 頂部標題區
+st.markdown('<div class="main-title">合約審查</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">逐條掃描風險條款，提供修訂建議</div>', unsafe_allow_html=True)
 
-if 'bank_info' not in st.session_state:
-    st.session_state.bank_info = ""
+# 4. 合約類型標籤 (橫向排列)
+col1, col2, col3 = st.columns(3)
+with col1: st.button("租賃合約")
+with col2: st.button("買賣合約")
+with col3: st.button("雇傭合約")
 
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.phone = None
-    st.session_state.is_admin = False
+col4, col5, col6 = st.columns(3)
+with col4: st.button("服務合約")
+with col5: st.button("保密協議(NDA)")
+with col6: st.button("股權投資")
 
-def save_users():
-    try:
-        with open(DATA_FILE, "wb") as f:
-            pickle.dump(st.session_state.users, f)
-    except:
-        pass
+# 5. 輸入區域
+st.markdown("<br><b>合約內容</b>", unsafe_allow_html=True)
+contract_input = st.text_area(
+    label="", 
+    placeholder="請貼上合約條文全文，或欲審查的重點條款...", 
+    height=300,
+    label_visibility="collapsed"
+)
 
-# 後台密碼
-ADMIN_PASSWORD = "akk121688"
-
-# 後台（側邊欄）
-with st.sidebar:
-    st.title("後台管理")
-    admin_pass = st.text_input("後台密碼", type="password")
-
-    if admin_pass == ADMIN_PASSWORD:
-        st.session_state.is_admin = True
-        st.success("後台已開啟")
-
-        st.subheader("客戶列表")
-        if st.session_state.users:
-            user_list = []
-            for phone, info in st.session_state.users.items():
-                user_list.append({
-                    "手機號碼": phone,
-                    "到期日期": info['expire_date'].strftime("%Y-%m-%d") if info['expire_date'] else "無",
-                    "已付費": "是" if info['paid'] else "否",
-                    "備註": info['notes']
-                })
-            st.dataframe(pd.DataFrame(user_list))
-
-            delete_phone = st.selectbox("刪除客戶", list(st.session_state.users.keys()))
-            if st.button("刪除此客戶"):
-                del st.session_state.users[delete_phone]
-                save_users()
-                st.success(f"已刪除 {delete_phone}")
-                st.rerun()
-        else:
-            st.info("目前沒有客戶")
-
-        st.subheader("新增/編輯客戶")
-        new_phone = st.text_input("手機號碼")
-        expire_date = st.date_input("到期日期")
-        paid = st.checkbox("已付費")
-        notes = st.text_area("備註")
-
-        if st.button("儲存客戶"):
-            if new_phone:
-                st.session_state.users[new_phone] = {
-                    'expire_date': expire_date,
-                    'paid': paid,
-                    'notes': notes
-                }
-                save_users()
-                st.success(f"已儲存 {new_phone}")
-                st.rerun()
-            else:
-                st.error("請輸入手機號碼")
-
-        st.subheader("銀行帳戶修改")
-        bank = st.text_area("銀行帳戶 / 轉帳方式")
-        if st.button("儲存銀行資訊"):
-            st.session_state.bank_info = bank
-            st.success("銀行資訊已更新")
-    else:
-        if admin_pass:
-            st.error("密碼錯誤")
-
-# 前台登入頁
-if not st.session_state.logged_in:
-    st.markdown("<div class='stars-bg'></div>", unsafe_allow_html=True)
-    st.markdown("<h1>強棒飆股</h1>", unsafe_allow_html=True)
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>請登入</div>", unsafe_allow_html=True)
-
-    phone = st.text_input("手機號碼")
-
-    if st.button("登入"):
-        if phone.strip():
-            if phone.strip() in st.session_state.users:
-                info = st.session_state.users[phone.strip()]
-                expire = info['expire_date']
-                if expire >= datetime.now().date():
-                    st.session_state.logged_in = True
-                    st.session_state.phone = phone.strip()
-                    st.success("登入成功")
-                    st.rerun()
-                else:
-                    st.error(f"會員已到期：{expire.strftime('%Y-%m-%d')}")
-            else:
-                st.error("未註冊，請付費後由管理員開通")
-        else:
-            st.error("請輸入手機號碼")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-else:
-    st.markdown("<h1>強棒飆股</h1>", unsafe_allow_html=True)
-    st.subheader(f"歡迎 {st.session_state.phone}")
-    info = st.session_state.users[st.session_state.phone]
-    st.write(f"會員有效期至：{info['expire_date'].strftime('%Y-%m-%d')}")
-
-    if st.session_state.bank_info:
-        st.markdown(f"""
-            <div class='footer-text'>
-                銀行轉帳資訊：{st.session_state.bank_info}
+# 6. 開始審查按鈕
+if st.button("開始審查"):
+    if contract_input:
+        with st.spinner("AI 律師正在掃描風險..."):
+            # 這裡可以加入您的 AI 分析邏輯
+            st.markdown("""
+            <div style="background-color: white; padding: 20px; border-radius: 12px; border-left: 5px solid #1E293B; margin-top: 20px;">
+                <h4 style="margin:0;">🔍 掃描結果</h4>
+                <p style="color: #444; font-size: 14px;">發現 2 項潛在風險：<br>1. 違約金比例高於市場行情 (民法 252 條)。<br>2. 管轄法院約定不明。建議修改為...</p>
             </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+    else:
+        st.warning("請先輸入合約內容。")
 
-    if st.button("選股"):
-        st.success("今日強棒飆股推薦（嚴格符合你的條件）")
-        cols = st.columns(3)
-        for i, name in enumerate(["台積電", "聯發科", "廣達"]):
-            with cols[i]:
-                st.markdown(f"""
-                <div class="card" style="padding:20px; text-align:center;">
-                    <div style="font-size:1.4rem; font-weight:900;">{name}</div>
-                    <div style="font-size:1.8rem; color:#00ff9d;">{1050 + i*100}</div>
-                    <div style="font-size:1.2rem; color:#00ff9d;">+{3.5 + i}%</div>
-                    <div>2330.TW</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-    if st.button("登出"):
-        st.session_state.logged_in = False
-        st.session_state.phone = None
-        st.rerun()
+# 7. 模擬底部導覽列 (純視覺效果)
+st.markdown("""
+    <div style="height: 100px;"></div> <!-- 墊高用，防止內容被遮住 -->
+    <div class="nav-bar">
+        <div class="nav-item active">📝<br>合約審查</div>
+        <div class="nav-item">📊<br>案情分析</div>
+        <div class="nav-item">🔍<br>法條檢索</div>
+        <div class="nav-item">⏳<br>歷史記錄</div>
+    </div>
+    """, unsafe_allow_html=True)
